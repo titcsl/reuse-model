@@ -1,0 +1,255 @@
+\documentclass[10pt,conference]{IEEEtran}
+\usepackage{cite}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx,booktabs,url}
+\usepackage[hidelinks]{hyperref}
+\urlstyle{same}
+\hypersetup{pdftitle={Auditing Energy Claims for Exact Frame Reuse on a Laptop GPU},pdfauthor={Ishan Teredesai and Tushar Rahangadle}}
+\newcommand{\Full}{\textsc{Full}}
+\newcommand{\Validate}{\textsc{Validate}}
+\newcommand{\Dirty}{\textsc{Dirty}}
+\newcommand{\Compact}{\textsc{Compact}}
+\input{results/numbers.tex}
+\begin{document}
+\title{Auditing Energy Claims for Exact Frame Reuse on a Laptop GPU}
+\author{\IEEEauthorblockN{Ishan Teredesai\IEEEauthorrefmark{1} \quad Tushar Rahangadle\IEEEauthorrefmark{2}}
+\IEEEauthorblockA{Department of Information Technology\\
+Yeshwantrao Chavan College of Engineering (YCCE)\\
+Nagpur, India\\
+\IEEEauthorrefmark{1}\texttt{001@ddm.in} \quad \IEEEauthorrefmark{2}\texttt{002@ddm.in}}}
+\maketitle
+
+\begin{abstract}
+Avoiding redundant rendering work can shorten a frame without establishing how much energy it saves. We study this distinction using exact frame reuse on an NVIDIA GeForce RTX 4050 Laptop GPU. Following an 88-trial exploratory pilot, a completed follow-up records 144 trials in four fresh processes. Three reuse policies pass 1,788 image comparisons with zero mismatches, and all 144 final-image checks pass. At 60 frames/s, sparse-change validation reduces median frame wall time from 4.796 to 1.845 ms. Its median apparent saving is 10.54\% from the cumulative energy counter and 9.73\% from integrated power, but the estimators disagree in sign for 10 of 36 policy contrasts. The larger problem appears in the controls. When cumulative energy is polled during static rendering, the median counter-to-integral ratio rises from 3.22 at a nominal 1,000-ms interval to 75.98 at 25 ms. A no-launch idle control produces ratios of 152.90--198.22. In contrast, sustained rendering produces ratios of 1.010--1.022. All main-trial operating-state samples report P8; the sustained trials report P0 during measurement. The results make a practical case for testing acquisition mode and operating regime before attributing telemetry differences to an optimization. Neither estimator is independently calibrated here.
+\end{abstract}
+\begin{IEEEkeywords}
+GPU energy, temporal reuse, energy measurement, sustainable software, reproducibility
+\end{IEEEkeywords}
+
+\section{Introduction}
+An optimization that avoids computation should be evaluated against the work it actually removes and the costs it leaves behind. At a fixed frame rate, a faster renderer spends more time waiting. It still uploads state, copies output, synchronizes with the host, and keeps a device context alive. These costs can make an energy difference much smaller than a frame-time difference. Software telemetry introduces a further question: does the reported energy change when the measurement procedure changes?
+
+We built a controlled CUDA renderer with explicit dependencies to separate output correctness, avoided shading and energy-measurement behavior at a fixed frame cadence. An initial run produced 88 completed trials before it was stopped manually. The GPU's cumulative energy counter and timestamp-aligned power integrals gave opposite directions for 23 of 48 matched comparisons. Two monitoring controls produced much larger counter increments when the counter was queried repeatedly. The partial run left open whether this acquisition effect would recur under a completed design with stronger controls.
+
+An audit of that draft identified the missing no-launch control, sparse monitoring repetitions, unexplained pauses, and limited evidence for the proposed energy interpretation. We therefore completed a separate, fixed-budget follow-up. It repeats the policy comparison, varies the polling interval, introduces idle and copy controls, requests explicit power fields, and includes a sustained workload. We retain the pilot as context and analyze the follow-up separately.
+
+The study asks three questions. \emph{RQ1}: how much frame time do the tested reuse policies avoid while preserving the output? \emph{RQ2}: do cumulative energy and integrated power agree on the direction of matched comparisons? \emph{RQ3}: how does their agreement change with counter-read frequency and workload regime?
+
+We contribute an executable case study and an audit procedure for evaluating energy claims about exact frame reuse. The benchmark compares GPU validation, application-provided invalidation and compact dirty-tile dispatch against full rendering, with output checks and timing measurements. In the completed 144-trial follow-up, the two energy estimators disagree in sign for 10 of 36 matched policy contrasts across 12 blocks. Polling-rate, no-launch, copy and sustained-load controls reveal how their agreement depends on acquisition and workload regime. This evidence connects established reuse methods and telemetry concerns to a reproducible optimization audit. The findings concern one laptop and driver configuration; physical energy accuracy remains unresolved.
+
+\section{Related Work}
+\paragraph{Reusing rendering work}
+Scherzer et al. survey temporal-coherence methods and the conditions under which previously computed information remains useful~\cite{tc}. Reverse reprojection caching retains shading calculations at visible surface points and introduces policies for refreshing cached entries~\cite{reproject}. Rendering Elimination detects redundant tiles through signatures of their inputs~\cite{re}. Temporally Adaptive Shading Reuse considers temporal coherence with perceptual constraints in real-time rendering and virtual reality~\cite{tasr}.
+
+These studies establish the prior basis for avoiding repeated shading. Our benchmark uses a narrower model: each tile depends on three state words, and unchanged dependencies must produce exactly the same pixels. It has no reprojection, perceptual tolerance, or cross-tile lighting. The cited systems provide prior context; our implemented baselines isolate validation, known invalidation and dispatch costs within the same renderer.
+
+\paragraph{GPU energy measurement}
+Burtscher, Zecena, and Zong document sampling and response anomalies in the K20 built-in sensor~\cite{burtscher}. Yang, Adamek, and Armour characterize NVIDIA power sensing across GPU platforms and show that acquisition behavior matters for energy estimates~\cite{yang}. These results motivate testing the sensor interface, but neither supplies a correction or accuracy bound for our laptop.
+
+Dauner et al. examine sampling frequency for RAPL and NVML~\cite{dauner}. Their consumer-GPU results include cumulative-energy estimates below integrated power at short intervals. Our repeated-counter observations are above the integral, including at substantially longer nominal intervals. Polling sensitivity is therefore not a new general finding, and agreement on its existence does not establish a common mechanism. Our focus is how acquisition behavior affects a concrete reuse-policy evaluation and whether the same anomaly survives a no-launch control.
+
+GPUWattch provides a hardware-validated architectural power model~\cite{gpuwattch}. Jay et al. compare software power meters against external measurements and examine reporting scope and overhead~\cite{jay}. PowerSensor3 supplies open instrumentation for measuring devices including GPUs~\cite{powersensor}. These works illustrate complementary measurement approaches. Our study audits the software interface defined by NVIDIA's NVML documentation~\cite{nvml}.
+
+\paragraph{Experimental structure}
+Ardito et al. describe a documented process for measuring software energy~\cite{ardito}. Mytkowicz et al. show how setup choices can bias performance measurements~\cite{mytkowicz}. Kalibera and Jones distinguish variation across experimental levels when allocating repetitions~\cite{kalibera}. We follow the practical implications of these works by retaining raw observations, recording the protocol, and separating frames from repeated process sessions.
+
+\section{Benchmark and Reuse Policies}
+\subsection{A restricted dependency model}
+The primary workload generates a 960$\times$540 RGBA image in 48$\times$48 tiles. There are 240 tiles, including a partial bottom row. Each tile contains a synthetic scene with six spheres, two lights, and four subpixel samples per pixel. We choose explicit, independent tile dependencies so that invalidation is inspectable and every policy can be checked against the same full-render output. No image is displayed. A common output-buffer copy represents a fixed device-side cost, rather than display presentation.
+
+State consists of 65 unsigned 32-bit words. Tile $i$ depends on global word 0 and local words
+\begin{equation}
+a_i=1+(i\bmod64),\qquad b_i=1+((13i+7)\bmod64).
+\end{equation}
+The local indices are distinct because equality would require $12i+7\equiv0\pmod{64}$. For state $s_t$, define
+\begin{equation}
+d_{i,t}=\bigvee_{j\in\{0,a_i,b_i\}}[s_t[j]\ne s_{t-1}[j]].
+\end{equation}
+After an initial full rendering, recomputing tiles with $d_{i,t}=1$ and retaining the others preserves the full-render result, provided the dependencies are complete and the execution is deterministic. This conditional argument explains the reuse rule. The implementation is checked separately through pixel comparisons.
+
+\subsection{Policies and change regimes}
+\Full{} shades the whole image every frame. \Validate{} uploads the current state, compares all 65 words with the previous state in a GPU kernel, and launches a full-grid render kernel whose unchanged pixels return early. \Dirty{} builds a dirty-tile mask from known changes on the CPU, uploads it, and uses the same full-grid early-return approach. \Compact{} builds and uploads an active-tile list and launches only those tiles. It omits the render launch when no tile changes.
+
+The dirty policies are useful baselines because the input generator already knows which state words changed. Their CPU bookkeeping and uploads are included in frame wall time. All four policies copy the complete image to a second device buffer and update the previous state each frame. The compact policy therefore still has nonzero cost when its render launch is absent.
+
+The follow-up tests static inputs, sparse changes, and all-changed inputs. Sparse changes independently modify each of the 64 local words with probability 0.02 per frame; global word 0 is unchanged. All-changed inputs modify every word. The pilot additionally tests frequent local changes and periodic camera cuts. The follow-up focuses on the no-change, low-change, and fully invalidated cases rather than pooling the two designs.
+
+Every matched policy consumes the same precomputed warmup and measurement traces. Their SHA-256 values are checked within each block. Trace generation occurs outside measurement; CPU policy decisions and transfers remain inside. The trace represents controlled state transitions, not an empirical distribution of changes in games or user interfaces.
+
+\subsection{Correctness and lower-work controls}
+Correctness tests compare each reuse policy with \Full{} under retention, isolated changes and reversions of all 65 words, and randomized sequences. The first follow-up process tests both 960$\times$540 and 961$\times$541 grids and checks a shorter sequence at 1920$\times$1080. Later processes repeat the short primary-grid check. A blind-stale implementation deliberately retains invalid output as a negative control. A final full-render comparison is also made after every measured trial, outside its energy window.
+
+The copy control retains state uploads, CUDA events, the complete image copy, and the previous-state copy, but skips rendering on static inputs. The idle control retains the CUDA context and allocations and executes a 60-Hz host loop. It makes no CUDA launches, copies, event calls, or synchronization calls during warmup or measurement. It is application no-work, not whole-machine idle: telemetry and ordinary system processes may still run.
+
+\section{Experimental Design and Analysis}
+\subsection{Platform and two acquisition runs}
+Both runs identify a Lenovo 83DV, Intel Core i5-13450HX, approximately 16 GiB RAM, and GeForce RTX 4050 Laptop GPU with 6 GiB device memory. The follow-up records NVIDIA driver 581.86, NVML 13.581.86, Python 3.14.5, and the Balanced Windows power scheme. Its Windows registry reports build 26300.9818 and DisplayVersion 26H2. Flight-channel fields are absent, so we do not infer a release channel. CUDA and NVML handles are matched by PCI bus identifier.
+
+The embedded kernels were compiled with NVRTC 12.1.105 for \texttt{compute\_52}, with fused multiply-add disabled. Their source and PTX digests are retained. The follow-up keeps the same renderer and changes acquisition and controls. The process inventory includes ordinary background applications and services; this is not a dedicated bare-metal test environment.
+
+The 2 November pilot completed 88 of 306 planned trials before manual interruption during trial 89's warmup. It contains 16 complete policy blocks, 48 contrasts and 84,000 measured frames. Unmeasured gaps of 107.16 and 220.30 minutes occurred after trials 1 and 88. Their cause was not recorded. The interrupted run is retained in full, with no claim that the planned repetition or ordering was achieved.
+
+The 6 November follow-up completed all 144 planned trials in four fresh process sessions over \FollowupRuntime{} minutes. Table~\ref{tab:protocol} gives the workload windows. Each session contributes one complete block for each main scenario and one repeat of every diagnostic condition. Main-policy order follows a four-period Williams design, balancing position and immediate predecessors across sessions. Other blocks are shuffled with recorded seeds. Scenario seeds change between sessions, while policies within a block share their trace. Sessions are separated by a scheduled 60-second pause. They are repeated executions in one sitting, not independent days or machines.
+
+\begin{table}[t]
+\centering
+\caption{Completed follow-up design. Counts include all four sessions. The 48 main trials form 12 four-policy blocks.}
+\label{tab:protocol}
+\input{results/protocol_table.tex}
+\end{table}
+
+\subsection{Timing, monitoring and stopping}
+Each paced trial has a two-second pretrial idle interval, full initialization, a five-second policy-specific warmup, and its measured window. Absolute deadlines are spaced at $1/60$ s. Missing one deadline does not shift later deadlines. Host frame time includes bookkeeping, uploads, GPU work, copies, synchronization and event queries. Five CUDA events separately bracket upload, validation, rendering and copying. These are stream elapsed intervals~\cite{events}; host submission gaps can contribute, so they are not isolated shader instruction times.
+
+Mode P polls ordinary NVML power plus temperature, clocks, performance state, throttle status and utilization. P+C additionally polls the cumulative energy counter. Mode B performs only the boundary counter reads during the workload; operating-state snapshots occur outside the measured window. Every mode reads cumulative energy at the workload boundaries. A common host-only watchdog checks for long scheduling gaps and AC loss without making CUDA or NVML calls.
+
+The main trials use P at a nominal 100-ms interval. The polling sweep uses static \Full{} with nominal intervals of 25, 50, 100, 250, 500 and 1,000 ms under both P and P+C, plus B. Poll starts are randomized within $\pm20\%$ of the nominal interval, with actual query times retained. Late scheduling does not generate a catch-up burst. The two explicit power-field conditions use ordinary P, either alone or with fields 185 (averaged power) and 186 (instantaneous power). Raw field types, return codes and timestamps are retained; these fields are not substituted into the primary estimator.
+
+The sustained diagnostic renders static 1920$\times$1080 images without a frame-rate cap for 15 seconds, following a five-second uncapped warmup. It runs last in each session and uses P. Its resolution, cadence and operating state differ from the main comparison. It tests agreement under another regime, not the energy benefit of reuse at matched service.
+
+The follow-up has a fixed stopping rule for correctness or API failure, AC loss, temperature at least 85$^\circ$C, watchdog gaps above five seconds, substantial clock discontinuity, unbracketed integration, or a workload overrun above two seconds. It does not stop for a favorable result. No such stop was recorded. Each session's watchdog event list is empty, all trial endpoints report AC power, and recorded telemetry temperatures span 42--58$^\circ$C. These checks improve the record but cannot reconstruct the causes of the pilot's gaps.
+
+\subsection{Estimators and units of analysis}
+For cumulative readings $C_0,C_1$ in millijoules, we compute
+\begin{equation}
+\widehat E^C=(C_1-C_0)/1000.
+\end{equation}
+Each query records host timestamps before and after the call. Let $u_0,u_1$ be the midpoints of the two boundary queries. Ordinary power readings, converted to watts, are assigned to their own query midpoints and linearly interpolated as $\widetilde P(t)$. We then compute
+\begin{equation}
+\widehat E^P=\int_{u_0}^{u_1}\widetilde P(t)\,dt,\qquad
+R=\widehat E^C/\widehat E^P.
+\end{equation}
+A post-workload tail brackets the endpoints. The artifact also contains integrals over the workload timestamps. Reported average power divides energy by the corresponding duration. Endpoint alignment removes one accounting mismatch; it does not establish the sensor's internal acquisition time.
+
+NVML documents one-second averaging for ordinary power on Ampere, except GA100, and newer architectures~\cite{nvml}. Polling more often does not imply independent samples at that rate. Its stated Fermi/Kepler accuracy qualification is not an RTX 4050 accuracy bound. Neither estimator is an independent physical reference, and neither measures total-system energy. We do not subtract an assumed idle baseline.
+
+For policy $p$ and full-render baseline $f$ in block $b$, the apparent saving is
+\begin{equation}
+S^X_{b,p}=100\left(1-\frac{\widehat E^X_{b,p}}{\widehat E^X_{b,f}}\right),\quad X\in\{C,P\}.
+\end{equation}
+We report the median of the four paired percentages and their observed range. Opposite signs require $S^C S^P<0$. The three reuse contrasts in a block share a baseline; the 36 contrasts are not 36 independent replications. Timing tables summarize per-trial medians, with quartiles across the four trials. Ranges and quartiles are descriptive, not confidence intervals. Fits of counter increments against query count are also descriptive and were chosen after examining the sweep, without an inferential p-value.
+
+\section{Results}
+\subsection{Completion, exact output and frame time}
+The follow-up records \FollowupFrames{} measured iterations: \PacedFrames{} paced iterations and 51,897 uncapped frames. All \FollowupChecks{} correctness comparisons pass, covering \FollowupPixels{} pixel comparisons; the blind-stale control produces 1,156,300 mismatched pixels. All 144 final-image checks pass. These counts describe tested transitions, not independent statistical replications or proof for arbitrary inputs.
+
+Independent recomputation from the raw counter values and power-query timestamps agrees with the recorded integrals within $5.7\times10^{-13}$ J. Every completed workload duration is within 0.001077 s of its target. One deadline miss occurs in an idle-control host loop; none occurs in the 48 main trials. The acquisition therefore completes its intended design without concealing deadline failures or discarding an adverse trial.
+
+Table~\ref{tab:timing} shows where the performance benefit appears. For sparse changes, median frame wall time falls from 4.796 ms for \Full{} to 1.845 ms for \Validate{}. The median paired wall-time reduction is 61.97\%. On static input, \Compact{} reaches 1.533 ms while retaining common output and state-copy costs. Its nonzero render-event interval does not mean a shader was launched; the events can include submission gaps even when the render launch is omitted.
+
+The CPU-known dirty policy is not uniformly slower than GPU validation. In the new sparse blocks, its median wall time is 1.748 ms, but its across-trial spread is larger. When every word changes, the reuse policies perform essentially the full rendering path plus their bookkeeping, with median wall times around 4.89--4.91 ms versus 4.839 ms for \Full{}. These observations argue for reporting several relevant baselines and their spread rather than selecting one favorable implementation comparison.
+
+\begin{table*}[t]
+\centering
+\caption{Follow-up timing and absolute power estimates. Wall time is the median of four trial medians, with their interquartile range. Other columns are medians of trial summaries. GPU, render and copy values are CUDA event intervals; their marginal medians need not add. $\widehat P$ uses the counter-aligned power integral.}
+\label{tab:timing}
+\input{results/timing_table.tex}
+\end{table*}
+
+\subsection{Policy comparisons depend on the estimator}
+Table~\ref{tab:energy} reports all nine scenario/policy cells, each with four paired blocks. For sparse \Validate{}, the counter and integral now agree in direction in all four blocks, with medians of 10.54\% and 9.73\%. This differs from the pilot's sparse-validation medians of $-2.29$\% and $+10.92$\%. We do not merge those values into a single estimate: the acquisition protocols and observed subsets differ.
+
+Across the follow-up, signs disagree in 10 of 36 contrasts. Six disagreements occur in the all-changed regime, where integrated-power effects are close to zero. Excluding that regime leaves four disagreements in 24 contrasts: three sparse \Dirty{} comparisons and one static \Dirty{} comparison. Seven of the ten disagreements have both absolute effects above 1\%; three exceed 5\%. All-changed is a useful low-benefit comparison, but not an identical-code null because the policies still execute different bookkeeping.
+
+The magnitude is modest on the power-integral path. Static and sparse reuse cells have median apparent savings between 9.48\% and 10.48\%, corresponding to median paired average-power differences of roughly 0.29--0.32 W. Static \Full{} uses a median 52.42 mJ per frame from the workload integral, compared with 47.21 mJ for \Compact{}.
+
+The four adjacent A/A comparisons give counter apparent savings from $-4.55$\% to $+1.32$\%, and power-integral values from $-0.83$\% to $+0.95$\%. Their sample standard deviations are \CounterAaSd{} and \PowerAaSd{} percentage points. This is an improvement over the pilot's counter variability, but four pairs do not define a universal noise floor. In particular, the small differences among reuse policies do not establish an energy ranking or equivalence.
+
+\begin{table*}[t]
+\centering
+\caption{Paired apparent energy savings against \Full{} in the follow-up. Entries are medians [minimum, maximum] over four session/seed blocks. ``Opposite'' counts counter/integral sign disagreements. Each block shares one baseline across three reuse contrasts.}
+\label{tab:energy}
+\input{results/energy_table.tex}
+\end{table*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/polling_and_pairs.pdf}
+\caption{Follow-up observations. (a) Each line is one process session; solid lines include continuous counter reads (P+C), dashed lines use power/state polling with boundary counters (P). Axes are logarithmic. (b) All 36 policy contrasts, with circles for \Validate{}, squares for \Dirty{}, and triangles for \Compact{}. Upper-left and lower-right quadrants indicate opposite signs. Points share block baselines and are not independent replications.}
+\label{fig:results}
+\end{figure*}
+
+\subsection{Polling rate dominates the counter result}
+Figure~\ref{fig:results}(a) and Table~\ref{tab:polling} show the clearest result. Under P+C, the median ratio $R$ is \CounterRatioFast{} at nominal 25 ms and \CounterRatioSlow{} at 1,000 ms. All four sessions show the same ordering across the six rates. The measured work remains static full rendering at 60 Hz. In matched P trials, median ratios across the rates remain between 1.13 and 1.25.
+
+The power-integral change between P+C and its matched P trial ranges from $-2.00$\% to $+3.80$\% across the 24 sweep pairs, with median $+0.43$\%. The much larger cumulative-counter change therefore depends strongly on the acquisition procedure even when this other telemetry path changes little.
+
+Actual timing matters. Nominal 25-ms P+C polling has a median achieved interval of 30.7 ms when the four trial medians are summarized; scheduling variability makes the label different from exact periodic sampling. We therefore also fit additional reported counter energy, P+C minus matched P, against the number of continuous reads within the counter window. Separate six-point fits for the four sessions have slopes of \CounterSlopeMin{}--\CounterSlopeMax{} reported joules per read and $R^2$ between 0.9986 and 0.9999. These slopes describe the counter's behavior under this sweep. They are not estimates of the physical energy cost of making an API call.
+
+\begin{table}[t]
+\centering
+\caption{Polling sweep: medians across four sessions. Achieved interval summarizes each P+C trial's median query spacing. P and P+C columns give $R=\widehat E^C/\widehat E^P$. The figure shows individual ratios.}
+\label{tab:polling}
+\input{results/polling_table.tex}
+\end{table}
+
+\subsection{Idle, copying and sustained execution}
+The no-launch control strengthens the interpretation that avoided rendering work is not the source of the large counter increments. At nominal 100-ms P+C polling, its ratio is \IdleRatioMin{}--\IdleRatioMax{} across the four sessions (Table~\ref{tab:controls}). Dividing the counter increment by duration implies 245.78--308.75 W, whereas the simultaneous power integral implies 1.42--1.65 W. These are incompatible software estimates of the same interval, not a measurement of actual idle consumption at hundreds of watts.
+
+The idle P+C power integral increases relative to P by 0.90\% to 10.65\% across the four pairs. The largest increase is appreciable, although still far smaller than the counter-to-integral discrepancy. Copy-only P+C ratios are 22.33--26.14. With boundary-only counter access, the implied counter power is much smaller for both controls. Read-frequency sensitivity therefore persists without shading and cannot be explained solely by how many tiles the renderer invalidates.
+
+The sustained trials give a different observation. Integrated average power is 54.92--55.44 W and the ratio is 1.0097--1.0220. Every operating-state sample inside these four workload windows reports P0, with SM clocks of 2,685 or 2,700 MHz. Every one of the 9,588 samples inside main-trial windows reports P8 and 210 MHz. Sampled states do not prove a continuous state between queries. The sustained comparison also changes resolution and cadence, so it cannot isolate performance state as a causal factor. It does show that the large low-load discrepancy is not reproduced in every tested workload regime.
+
+\begin{table*}[t]
+\centering
+\caption{Absolute estimates and controls. Each row summarizes four trials as median [minimum, maximum]. B has no in-window power polling, so no power integral or ratio is reported. ``Full, static'' is the main-policy baseline under P; idle and copy controls use nominal 100-ms polling. Sustained is uncapped 1920$\times$1080 rendering under P and is not a matched optimization comparison.}
+\label{tab:controls}
+\input{results/controls_table.tex}
+\end{table*}
+
+\subsection{Explicit power fields and query phase}
+Both requested power fields succeed in all 1,062 snapshots in which they are requested, returning unsigned integer values. Relative to the ordinary-power integral over the same workload timestamps, the instantaneous-field integral differs by $-0.18$\% to $+0.27$\%. The averaged-field integral is nearly identical in sessions 1 and 2, but is 4.89\% and 4.74\% lower in sessions 3 and 4. These four diagnostic trials use sequential calls. We retain the field-specific readings separately and keep ordinary power as the primary integral. Adding the field queries changes the ordinary-power integral by $+0.30$\% to $+0.79$\% in the four matched comparisons.
+
+The pilot's timestamps also let us check a proposed phase-locking explanation. Of 86 completed trials with power polling, 85 place power-query midpoints in all 16 equal bins of a nominal frame period; the remaining trial occupies 15 bins. The queries therefore did not stay confined to one nominal phase. This weakens that specific explanation, while leaving internal averaging and unobserved between-query state unresolved. The follow-up logs each operating-state query's timing as well as the power-query boundaries.
+
+\section{Implications for Green Software Engineering}
+The first practical lesson is to test acquisition before ranking optimizations. On this device, changing counter-read frequency produces a much larger reported energy change than switching between exact reuse policies. A study that reads cumulative energy only at boundaries and a tool that polls it continuously may therefore reach very different conclusions about the same rendering workload. The monitoring mode belongs in the experimental description and, where possible, in a control experiment.
+
+Second, a useful control should remove the work being credited with a saving. Copy-only is informative about a renderer's fixed costs, but it still performs CUDA operations. The no-launch control removes those operations during the measurement window and exposes a larger counter discrepancy. Conversely, a sustained-load check asks whether an acquisition problem persists in another operating regime. Neither control provides physical ground truth, but together they narrow which interpretations remain plausible.
+
+Third, performance and energy should be reported at their own measurement levels. The tested reuse policies preserve the output and substantially reduce wall time for static and sparse inputs. Integrated power reports a smaller, roughly 0.3-W paired reduction. A counter anomaly does not erase the timing result, and the timing result does not validate the energy claim. Reporting the absolute difference, matched pairs and A/A variation makes this distinction visible to a reader considering the optimization.
+
+Finally, a reproducible audit needs the exact acquisition path, not just a summary table. Our artifact retains both raw CSVs, embedded source and protocol hashes, derived trial tables, per-read counter increments, timing components, and analysis scripts. The result is useful even if another driver or device does not reproduce the anomaly: the same controls can reveal whether that configuration supports a stronger energy interpretation.
+
+\section{Threats to Validity}
+\paragraph{Measurement validity}
+Both estimators come from the same exposed NVML stack. Agreement can reflect shared error, and disagreement cannot identify which value is physically accurate. No external GPU or whole-system meter was used; the estimates do not measure battery energy or establish calibrated physical savings. The counter's API types, units and monotonic readings were checked, but this does not exclude errors in the driver, firmware, instrumentation or interpretation. We do not assign a specific mechanism to the anomaly. Multi-field queries are sequential; query timestamps and field timestamps do not establish independent sensor resolution.
+
+\paragraph{Repetition and dependence}
+The follow-up contains four sessions on one laptop in one sitting. The main analysis has four blocks per scenario, with a shared baseline within each block. The original interrupted pilot has additional ordering and stopping limitations. We keep the runs separate and report ranges rather than population confidence intervals. The polling fits are descriptive, and A/A spread is not an equivalence margin. No formal power calculation supports an energy-equivalence claim.
+
+\paragraph{Operating conditions}
+AC endpoints, temperature checks and an empty watchdog event log do not eliminate background interference or establish continuous operating state. The process inventory includes other applications and services. Even under the same sampled P8 label, static full-render integrated average power varies from 2.57 to 3.24 W across sessions. The idle control retains a GPU context, and the sustained test changes several factors at once. Those comparisons support a bounded case analysis, not causal identification of a power-state mechanism.
+
+\paragraph{Workload and instrumentation}
+Independent tiles, simple state dependencies and synthetic changes make exact reuse easy to inspect but limit realism. The workload excludes display presentation, complex synchronization, CPU/system energy, and production rendering effects. Event instrumentation and Python/driver overhead contribute to the timed path. Correctness is established only for the tested kernels, dimensions and sequences. Generalization requires other devices, drivers, days and application workloads, followed by independent measurement if physical savings are claimed.
+
+\section{Conclusion}
+The completed follow-up confirms a substantial reduction in frame time from exact reuse while exposing a larger problem in the energy acquisition path. Counter and integrated-power signs differ in 10 of 36 matched contrasts. More decisively, cumulative-counter ratios rise with read frequency and reach 152.90--198.22 in a no-launch idle control, whereas sustained rendering yields ratios near one. The combination of these controls is stronger evidence than the interrupted pilot's disagreement count alone.
+
+The actionable result is to audit query frequency, lower-work controls and operating regime before attributing reported energy differences to an optimization. For this configuration, neither an unvalidated cumulative counter nor a faster frame is sufficient evidence of physical energy savings. The raw acquisition record and reproducible analysis preserve that distinction and provide a basis for independent replication.
+
+\section*{Artifact Availability}
+Reproduction materials: \url{https://github.com/titcsl/reuse-model}. The artifact package contains both unmodified acquisition CSVs, the fixed protocols, analysis scripts, generated tables and figures, and source checksums. Its README separates regenerating results from collecting a new hardware run: \texttt{python build.py --analysis-only} audits the existing records and rebuilds the tables and figures without a GPU. The \texttt{restore\_executed.py} utility recovers and checks the exact program embedded in each CSV. A readable benchmark copy and a record of its formatting changes are also included.
+
+\section*{Acknowledgment}
+We acknowledge the audit of an earlier draft, which motivated the additional controls and clearer uncertainty reporting. OpenAI ChatGPT assisted during the preparation of this paper, including drafting and revising the abstract and Sections I--VIII and developing the benchmark, analysis code and figures. Numerical results were computed from the recorded acquisition data.
+
+\begin{thebibliography}{00}
+\bibitem{tc} D. Scherzer, L. Yang, O. Mattausch, D. Nehab, P. V. Sander, M. Wimmer, and E. Eisemann, ``A Survey on Temporal Coherence Methods in Real-Time Rendering,'' in \emph{Eurographics 2011 State of the Art Reports}, pp. 101--126, 2011, doi: \href{https://doi.org/10.2312/EG2011/stars/101-126}{10.2312/EG2011/stars/101-126}.
+\bibitem{reproject} D. Nehab, P. V. Sander, J. Lawrence, N. Tatarchuk, and J. R. Isidoro, ``Accelerating Real-Time Shading with Reverse Reprojection Caching,'' in \emph{Proc. ACM SIGGRAPH/Eurographics Symp. Graphics Hardware}, pp. 25--35, 2007. [Online]. Available: \url{https://gfx.cs.princeton.edu/gfx/pubs/Nehab_2007_ARS/index.php}
+\bibitem{re} M. Anglada, E. de Lucas, J.-M. Parcerisa, J. L. Arag\'on, P. Marcuello, and A. Gonz\'alez, ``Rendering Elimination: Early Discard of Redundant Tiles in the Graphics Pipeline,'' in \emph{Proc. IEEE Int. Symp. High Performance Computer Architecture (HPCA)}, 2019, doi: \href{https://doi.org/10.1109/HPCA.2019.00014}{10.1109/HPCA.2019.00014}.
+\bibitem{tasr} J. H. Mueller, T. Neff, P. Voglreiter, M. Steinberger, and D. Schmalstieg, ``Temporally Adaptive Shading Reuse for Real-Time Rendering and Virtual Reality,'' \emph{ACM Trans. Graph.}, vol. 40, no. 2, Art. no. 11, 2021, doi: \href{https://doi.org/10.1145/3446790}{10.1145/3446790}.
+\bibitem{burtscher} M. Burtscher, I. Zecena, and Z. Zong, ``Measuring GPU Power with the K20 Built-in Sensor,'' in \emph{Proc. Seventh Workshop on General Purpose Processing Using GPUs}, pp. 28--36, 2014. [Online]. Available: \url{https://userweb.cs.txstate.edu/~burtscher/papers/gpgpu14.pdf}
+\bibitem{yang} Z. Yang, K. Adamek, and W. Armour, ``Accurate and Convenient Energy Measurements for GPUs: A Detailed Study of NVIDIA GPU's Built-In Power Sensor,'' in \emph{Proc. SC}, 2024. [Online]. Available: \url{https://sc24.supercomputing.org/proceedings/tech_paper/tech_paper_pages/pap544.html}
+\bibitem{dauner} M. Dauner, M. Steinberg, A. Brunnert, B. Schicker, and B. Z\"onnchen, ``Evaluating the Influence of Measurement Frequency on Energy Readings Using Intel RAPL and NVIDIA NVML,'' \emph{ACM SIGENERGY Energy Informatics Review}, vol. 6, no. 2, Jul. 2026. [Online]. Available: \url{https://hotcarbon.org/assets/2026/paper-46.pdf}
+\bibitem{gpuwattch} J. Leng, T. Hetherington, A. ElTantawy, S. Gilani, N. S. Kim, T. M. Aamodt, and V. J. Reddi, ``GPUWattch: Enabling Energy Optimizations in GPGPUs,'' in \emph{Proc. Int. Symp. Computer Architecture (ISCA)}, 2013, doi: \href{https://doi.org/10.1145/2485922.2485964}{10.1145/2485922.2485964}.
+\bibitem{jay} M. Jay, V. Ostapenco, L. Lef\`evre, D. Trystram, A.-C. Orgerie, and B. Fichel, ``An Experimental Comparison of Software-Based Power Meters: Focus on CPU and GPU,'' in \emph{Proc. IEEE/ACM Int. Symp. Cluster, Cloud and Internet Computing (CCGrid)}, 2023, doi: \href{https://doi.org/10.1109/CCGrid57682.2023.00020}{10.1109/CCGrid57682.2023.00020}.
+\bibitem{powersensor} S. van der Vlugt, L. Oostrum, G. Schoonderbeek, B. van Werkhoven, B. Veenboer, K. Doekemeijer, and J. W. Romein, ``PowerSensor3: A Fast and Accurate Open Source Power Measurement Tool,'' in \emph{Proc. IEEE Int. Symp. Performance Analysis of Systems and Software (ISPASS)}, pp. 213--226, 2025, doi: \href{https://doi.org/10.1109/ISPASS64960.2025.00028}{10.1109/ISPASS64960.2025.00028}.
+\bibitem{nvml} NVIDIA, ``NVML API Reference Guide: Device Queries.'' Accessed: Nov. 6, 2026. [Online]. Available: \url{https://docs.nvidia.com/deploy/nvml-api/latest/api/group__nvmlDeviceQueries.html}
+\bibitem{ardito} L. Ardito, R. Coppola, M. Morisio, and M. Torchiano, ``Methodological Guidelines for Measuring Energy Consumption of Software Applications,'' \emph{Scientific Programming}, vol. 2019, Art. no. 5284645, 2019, doi: \href{https://doi.org/10.1155/2019/5284645}{10.1155/2019/5284645}.
+\bibitem{mytkowicz} T. Mytkowicz, A. Diwan, M. Hauswirth, and P. F. Sweeney, ``Producing Wrong Data Without Doing Anything Obviously Wrong!'' in \emph{Proc. Int. Conf. Architectural Support for Programming Languages and Operating Systems (ASPLOS)}, pp. 265--276, 2009, doi: \href{https://doi.org/10.1145/1508244.1508275}{10.1145/1508244.1508275}.
+\bibitem{kalibera} T. Kalibera and R. Jones, ``Rigorous Benchmarking in Reasonable Time,'' in \emph{Proc. ACM SIGPLAN Int. Symp. Memory Management (ISMM)}, 2013, doi: \href{https://doi.org/10.1145/2464157.2464160}{10.1145/2464157.2464160}.
+\bibitem{events} NVIDIA, ``CUDA Driver API Reference Manual: Event Management.'' Accessed: Nov. 2, 2026. [Online]. Available: \url{https://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__EVENT.html}
+\end{thebibliography}
+\end{document}
