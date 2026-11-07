@@ -1,0 +1,14 @@
+[
+  {
+    "file": "gpu_audit_v2_20261102_144917_80abb6.csv.gz",
+    "compressed_bytes": 4573564,
+    "decompressed_bytes": 27777354,
+    "decompressed_sha256": "ebd9cd9b636b363d68f4d7129432da55828c7b27773352c45fd998b62c1e2fff"
+  },
+  {
+    "file": "gpu_audit_v3_20261106_153155_70b1e6.csv.gz",
+    "compressed_bytes": 12818176,
+    "decompressed_bytes": 93438834,
+    "decompressed_sha256": "d88e799c18ac7f6122e2b6192fa7bdfb68b634dc46805272dd37b1623041efee"
+  }
+]
