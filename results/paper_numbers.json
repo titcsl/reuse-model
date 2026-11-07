@@ -1,0 +1,17 @@
+{
+  "FollowupTrials": "144",
+  "FollowupFrames": "204,297",
+  "PacedFrames": "152,400",
+  "FollowupChecks": "1,788",
+  "FollowupPixels": "1,021,372,974",
+  "FollowupRuntime": "69.18",
+  "FollowupOpposite": "10",
+  "CounterRatioFast": "75.98",
+  "CounterRatioSlow": "3.22",
+  "IdleRatioMin": "152.90",
+  "IdleRatioMax": "198.22",
+  "CounterSlopeMin": "5.49",
+  "CounterSlopeMax": "5.98",
+  "CounterAaSd": "2.60",
+  "PowerAaSd": "0.76"
+}

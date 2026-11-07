@@ -1,0 +1,13 @@
+{
+  "status": "passed",
+  "exact_source_checksum": "8799c10994894eb09252e314073996a78aae8cec59646ca2d110c1e66ebc9c43",
+  "python_structure_comparison": "passed with documented constants and documentation normalized",
+  "cuda_executable_token_comparison": "passed",
+  "compiled_ptx_comparison": "identical",
+  "authored_python_files_without_comments_or_docstrings": 6,
+  "regenerated_paced_trace_pairs": 140,
+  "followup_plan_trials": 144,
+  "independently_recalculated_sign_disagreements": 10,
+  "new_gpu_run_on_packaging_host": false,
+  "scope": "Host checks and reproducibility of the supplied acquisition, not external energy calibration"
+}

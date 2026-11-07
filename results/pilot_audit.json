@@ -1,0 +1,56 @@
+{
+  "dataset": "pilot",
+  "input_file": "gpu_audit_v2_20261102_144917_80abb6.csv",
+  "input_sha256": "ebd9cd9b636b363d68f4d7129432da55828c7b27773352c45fd998b62c1e2fff",
+  "source_sha256": "393f60171d0ab6f640a402d9a188ff099d9f6791c4caa6e796c47fec1836f6ca",
+  "protocol_sha256": "8dff42f08c0e9c7f25dee52cf36398aad7cbff3856df815578dc0dc765129ae5",
+  "planned_trials": 306,
+  "completed_trials": 88,
+  "record_counts": {
+    "metadata": 27,
+    "run_status": 2,
+    "session_status": 2,
+    "correctness": 1548,
+    "negative_control": 12,
+    "trial_plan": 89,
+    "operating_state": 178,
+    "frame": 84000,
+    "telemetry": 17723,
+    "energy_boundary": 176,
+    "trial": 89,
+    "final_image_check": 88
+  },
+  "run_status": "incomplete",
+  "elapsed_wall_s": 21826.206676,
+  "correctness_checks": 1548,
+  "correctness_pixels": 803644974,
+  "negative_control_mismatches": 335863,
+  "final_image_checks": 88,
+  "maximum_integral_recalculation_error_j": 1.7053025658242404e-13,
+  "operating_states_all_telemetry": [
+    {
+      "pstate": 8,
+      "sm_mhz": 210,
+      "count": 17682
+    }
+  ],
+  "problems": [],
+  "main_blocks": 16,
+  "main_contrasts": 48,
+  "opposite_signs": 23,
+  "opposite_signs_both_over_1pct": 21,
+  "opposite_signs_both_over_5pct": 11,
+  "measured_frames": 84000,
+  "paced_frames": 84000,
+  "deadline_misses": 34,
+  "maximum_duration_error_s": 0.0016274999999996709,
+  "temperature_c": {
+    "n": 86,
+    "median": 45.0,
+    "min": 43.0,
+    "max": 47.0,
+    "q25": 45.0,
+    "q75": 46.0,
+    "sd": 1.0864795241963596
+  }
+}

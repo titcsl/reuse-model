@@ -1,0 +1,66 @@
+{
+  "correctness": "Full 960x540 and odd 961x541 grids, isolated changes to all 65 words, negative controls, sequence checks, final timed-frame check outside every energy window",
+  "diagnostics": "A/A controls, duration sweep, polling-counter perturbation, boundary-only monitor ablation, copy-only lower-work control",
+  "endpoints": "Both counter query before/after times; power query before/after times; workload start/end; raw mJ",
+  "fps": 60,
+  "height": 540,
+  "inference": "Exploratory fixed-budget follow-up; no formal power calculation claimed; report seed/session structure and raw pairs",
+  "inputs": "Precomputed state traces; generation and hashing outside measurement; CPU dirty decisions and uploads inside measurement",
+  "kernel_build": {
+    "compiler": "NVIDIA NVRTC",
+    "compiler_wheel_sha256": "339b385f50c309763ca65456ec75e17bbefcbbf2893f462cb8b90584cd27a1c2",
+    "distribution_version": "12.1.105",
+    "options": [
+      "--std=c++11",
+      "--gpu-architecture=compute_52",
+      "--fmad=false"
+    ],
+    "physical_gpu_test_performed_during_preparation": false,
+    "ptx_sha256": "5633a0108bfdf55a58e15abe5dc04bee6e75170b1b58a4816b2b68399cb9963a",
+    "source_sha256": "13a251c2f27e2d3d78296d76b01aacd55b044f1d52d8d0f4dd8b1f6dd23b2b1c",
+    "target": "compute_52",
+    "version_api": [
+      12,
+      1
+    ]
+  },
+  "main_pairs_per_scenario_policy": 12,
+  "main_workload_seeds_per_scenario": 4,
+  "measurement_windows_seconds": [
+    10,
+    15,
+    30,
+    60
+  ],
+  "nominal_minutes_excluding_correctness_setup_and_IO": 125.32,
+  "phase_counts": {
+    "aa": 24,
+    "copy": 6,
+    "duration": 18,
+    "main": 240,
+    "monitor": 18
+  },
+  "planned_sensitivity_thresholds_percent": [
+    0,
+    1,
+    5,
+    10
+  ],
+  "planned_trials": 306,
+  "primary_analysis": "Main comparisons on power-only polling with boundary counters; both estimators reported; no frame pseudoreplication",
+  "purpose": "Diagnose telemetry disagreement and exact reuse at matched cadence; no calibrated energy guarantee",
+  "scope": "Synthetic offscreen GPU telemetry; excludes display and CPU/system energy; no independent power instrument",
+  "sensitivity_thresholds_are_not_accuracy_bounds": true,
+  "session_gap_seconds": 60,
+  "sessions": 3,
+  "smoke_only": false,
+  "software_changes": "No driver, clock, power-limit or persistent power-plan changes. Temporarily prevent idle sleep.",
+  "source_sha256": "393f60171d0ab6f640a402d9a188ff099d9f6791c4caa6e796c47fec1836f6ca",
+  "stopping_rule": "Fixed plan, not significance-based. Stop on correctness, API, AC-loss, or 85 C safety failure; retain partial/adverse data",
+  "timing": "Five CUDA event boundaries in every policy/frame; intervals may include host submission gaps; all costs explicitly retained. Instrumentation and input replay differ from v1; do not pool v1 and v2 timing results.",
+  "version": "gpu-frame-audit-2.0",
+  "warmup_is_not_a_steady_state_guarantee": true,
+  "warmup_seconds": 5,
+  "width": 960,
+  "within_one_sitting": true
+}

@@ -1,0 +1,88 @@
+{
+  "dataset": "followup",
+  "input_file": "gpu_audit_v3_20261106_153155_70b1e6.csv",
+  "input_sha256": "d88e799c18ac7f6122e2b6192fa7bdfb68b634dc46805272dd37b1623041efee",
+  "source_sha256": "8799c10994894eb09252e314073996a78aae8cec59646ca2d110c1e66ebc9c43",
+  "protocol_sha256": "6a6d098b57c961bb0ca998c80f6652288e8b1f9f7ca79079772dab6a7853d77d",
+  "planned_trials": 144,
+  "completed_trials": 144,
+  "record_counts": {
+    "metadata": 112,
+    "run_status": 2,
+    "session_status": 8,
+    "correctness": 1788,
+    "negative_control": 32,
+    "progress_checkpoint": 288,
+    "trial_plan": 144,
+    "operating_state": 288,
+    "frame": 204297,
+    "telemetry": 35394,
+    "energy_boundary": 288,
+    "trial": 144,
+    "final_image_check": 144,
+    "session_transition": 6
+  },
+  "run_status": "completed",
+  "elapsed_wall_s": 4150.74734,
+  "correctness_checks": 1788,
+  "correctness_pixels": 1021372974,
+  "negative_control_mismatches": 1156300,
+  "final_image_checks": 144,
+  "maximum_integral_recalculation_error_j": 5.684341886080801e-13,
+  "operating_states_all_telemetry": [
+    {
+      "pstate": 8,
+      "sm_mhz": 210,
+      "count": 34548
+    },
+    {
+      "pstate": 0,
+      "sm_mhz": 2685,
+      "count": 600
+    },
+    {
+      "pstate": 0,
+      "sm_mhz": 2700,
+      "count": 194
+    },
+    {
+      "pstate": 3,
+      "sm_mhz": 2685,
+      "count": 33
+    },
+    {
+      "pstate": 3,
+      "sm_mhz": 210,
+      "count": 10
+    },
+    {
+      "pstate": 3,
+      "sm_mhz": 2055,
+      "count": 5
+    },
+    {
+      "pstate": 3,
+      "sm_mhz": 2700,
+      "count": 4
+    }
+  ],
+  "problems": [],
+  "main_blocks": 12,
+  "main_contrasts": 36,
+  "opposite_signs": 10,
+  "opposite_signs_both_over_1pct": 7,
+  "opposite_signs_both_over_5pct": 3,
+  "measured_frames": 204297,
+  "paced_frames": 152400,
+  "deadline_misses": 1,
+  "maximum_duration_error_s": 0.0010766999999987092,
+  "temperature_c": {
+    "n": 132,
+    "median": 43.0,
+    "min": 42.0,
+    "max": 58.0,
+    "q25": 43.0,
+    "q75": 43.0,
+    "sd": 2.646789351270268
+  }
+}
