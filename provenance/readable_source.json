@@ -1,0 +1,19 @@
+{
+  "executed_source_sha256": "8799c10994894eb09252e314073996a78aae8cec59646ca2d110c1e66ebc9c43",
+  "readable_source_sha256": "80ec09bfa7ad2eaf92df0efadf14ecadae6ed3f6e227caa7263f8e85530b7f40",
+  "executed_kernel_source_sha256": "13a251c2f27e2d3d78296d76b01aacd55b044f1d52d8d0f4dd8b1f6dd23b2b1c",
+  "readable_kernel_source_sha256": "d821fd67098793d56129b43c748a604c987d3340adf90c1e4a0b8d166d40be99",
+  "embedded_ptx_sha256": "5633a0108bfdf55a58e15abe5dc04bee6e75170b1b58a4816b2b68399cb9963a",
+  "changes": [
+    "Removed Python comments and string-expression documentation",
+    "Reformatted Python with ast.unparse and wrapped the embedded PTX string",
+    "Removed four CUDA line comments and trailing whitespace; no executable CUDA tokens changed",
+    "Updated the kernel-source checksum for the readable CUDA representation"
+  ],
+  "unchanged": [
+    "Executable Python structure apart from the two documented data constants",
+    "Embedded compiled PTX bytes",
+    "Workload and experimental plan"
+  ],
+  "execution_status": "This formatting derivative was host-checked; the uploaded measurement was produced by the exact source embedded in the CSV."
+}
