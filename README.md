@@ -1,11 +1,11 @@
-# Exact frame reuse: GPU energy measurement
+# GPU energy measurement: polling and reuse
 
-Supplementary material for **Auditing Energy Claims for Exact Frame Reuse on a Laptop GPU**.
+Supplementary material for **Polling-Dependent NVML Energy Estimates on a Laptop GPU**.
 
 Ishan Teredesai and Tushar Rahangadle  
 Department of Information Technology, Yeshwantrao Chavan College of Engineering, Nagpur, India
 
-This repository contains the CUDA benchmark, acquisition records and analysis needed to reproduce the manuscript's results. The study compares full rendering with three exact-reuse policies and examines how GPU energy estimates depend on the measurement procedure.
+This repository contains the CUDA benchmark, acquisition records and analysis needed to reproduce the manuscript's results. The study examines how GPU energy estimates depend on counter polling and collection mode, using exact frame reuse as a software-optimization case. The completed study and interrupted pilot remain separate datasets; only the completed study supplies the revised manuscript's reported results.
 
 ## Reproduce the results
 
